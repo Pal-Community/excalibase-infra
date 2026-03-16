@@ -69,6 +69,24 @@ spec:
   affinity:
     topologyKey: kubernetes.io/hostname
 
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://excalibase-dev-backup/asian/
+      endpointURL: https://s3.ap-south-1.amazonaws.com
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-s3-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-s3-creds
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+        jobs: 2
+    retentionPolicy: "30d"
+
   bootstrap:
     initdb:
       database: excalibase
@@ -81,3 +99,14 @@ spec:
     limits:
       cpu: 3000m
       memory: 3Gi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-daily
+  namespace: postgres
+spec:
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: postgres
