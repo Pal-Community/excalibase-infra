@@ -6,7 +6,7 @@ grafana:
     ingressClassName: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      nginx.ingress.kubernetes.io/whitelist-source-range: "117.0.93.248/32"
+
     hosts:
       - grafana.excalibase.io
     tls:
