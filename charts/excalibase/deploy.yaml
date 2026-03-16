@@ -1,0 +1,191 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: excalibase
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: excalibase-graphql
+  namespace: excalibase
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: excalibase-graphql
+  template:
+    metadata:
+      labels:
+        app: excalibase-graphql
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: excalibase-graphql
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: excalibase-graphql
+          image: ghcr.io/pal-community/excalibase-graphql:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "postgres-rw.postgres.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "excalibase"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: password
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: excalibase-graphql
+  namespace: excalibase
+spec:
+  selector:
+    app: excalibase-graphql
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: excalibase-graphql
+  namespace: excalibase
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.excalibase.io
+      http:
+        paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: excalibase-graphql
+                port:
+                  number: 80
+  tls:
+    - secretName: excalibase-graphql-tls
+      hosts:
+        - api.excalibase.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: excalibase-rest
+  namespace: excalibase
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: excalibase-rest
+  template:
+    metadata:
+      labels:
+        app: excalibase-rest
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: excalibase-rest
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: excalibase-rest
+          image: ghcr.io/pal-community/excalibase-rest:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "postgres-rw.postgres.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "excalibase"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: password
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: excalibase-rest
+  namespace: excalibase
+spec:
+  selector:
+    app: excalibase-rest
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: excalibase-rest
+  namespace: excalibase
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.excalibase.io
+      http:
+        paths:
+          - path: /rest
+            pathType: Prefix
+            backend:
+              service:
+                name: excalibase-rest
+                port:
+                  number: 80
+  tls:
+    - secretName: excalibase-rest-tls
+      hosts:
+        - api.excalibase.io
