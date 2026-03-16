@@ -1,0 +1,16 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: sonarqube
+  namespace: postgres
+spec:
+  name: sonarqube
+  owner: sonarqube
+  cluster:
+    name: postgres
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Publication
+metadata:
+  name: sonarqube-user
+  namespace: postgres

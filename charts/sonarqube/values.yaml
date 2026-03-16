@@ -1,0 +1,51 @@
+replicaCount: 1
+
+community:
+  enabled: true
+
+monitoringPasscode: "excalibase-monitoring-passcode"
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - name: sonar.excalibase.io
+      path: /
+  tls:
+    - secretName: sonarqube-tls
+      hosts:
+        - sonar.excalibase.io
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: 2000m
+    memory: 3Gi
+
+persistence:
+  enabled: true
+  storageClass: local-path
+  size: 10Gi
+
+# Use existing CNPG PostgreSQL
+postgresql:
+  enabled: false
+
+jdbcOverwrite:
+  enable: true
+  jdbcUrl: "jdbc:postgresql://postgres-rw.postgres.svc.cluster.local:5432/sonarqube"
+  jdbcUsername: sonarqube
+  jdbcSecretName: sonarqube-db-secret
+  jdbcSecretPasswordKey: password
+
+# community-branch-plugin
+plugins:
+  install:
+    - https://github.com/mc1arke/sonarqube-community-branch-plugin/releases/download/26.2.0/sonarqube-community-branch-plugin-26.2.0.jar
+
+jvmOpts: "-javaagent:/opt/sonarqube/extensions/plugins/sonarqube-community-branch-plugin-26.2.0.jar=web"
+jvmCeOpts: "-javaagent:/opt/sonarqube/extensions/plugins/sonarqube-community-branch-plugin-26.2.0.jar=ce"
