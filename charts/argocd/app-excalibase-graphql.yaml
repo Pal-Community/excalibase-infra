@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: excalibase-graphql
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/excalibase/excalibase-graphql.git
+    targetRevision: HEAD
+    path: helm/excalibase-graphql
+    helm:
+      values: |
+        image:
+          pullPolicy: Always
+        database:
+          url: "jdbc:postgresql://postgres-rw.postgres.svc.cluster.local:5432/excalibase"
+          username: excalibase
+          password: "Excali2026GraphQL"
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            cert-manager.io/cluster-issuer: letsencrypt-prod
+          hosts:
+            - host: api.excalibase.io
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: excalibase-graphql-tls
+              hosts:
+                - api.excalibase.io
+        extraEnv:
+          - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+            value: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318/v1/traces"
+          - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+            value: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318/v1/metrics"
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: excalibase
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

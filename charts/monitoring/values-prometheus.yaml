@@ -18,10 +18,28 @@ grafana:
       type: loki
       url: http://loki:3100
       access: proxy
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3100
+      access: proxy
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-1m"
+          spanEndTimeShift: "1m"
+          filterByTraceID: true
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
   dashboards:
     cnpg:
       cloudnative-pg:
         gnetId: 20417
+        datasource: Prometheus
+    excalibase:
+      excalibase-overview:
+        url: https://raw.githubusercontent.com/excalibase/excalibase-graphql/main/observability/grafana/dashboards/excalibase-overview.json
         datasource: Prometheus
   dashboardProviders:
     dashboardproviders.yaml:
@@ -32,6 +50,11 @@ grafana:
           type: file
           options:
             path: /var/lib/grafana/dashboards/cnpg
+        - name: excalibase
+          folder: Excalibase
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/excalibase
 
 prometheus:
   prometheusSpec:

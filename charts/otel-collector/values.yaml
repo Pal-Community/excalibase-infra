@@ -1,0 +1,92 @@
+mode: deployment
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.119.0"
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 200
+      spike_limit_mib: 50
+    batch:
+      timeout: 5s
+      send_batch_size: 1000
+    resource:
+      attributes:
+        - key: service.name
+          value: excalibase-graphql
+          action: insert
+
+  exporters:
+    otlphttp/tempo:
+      endpoint: http://tempo.monitoring.svc.cluster.local:4318
+      tls:
+        insecure: true
+    prometheus:
+      endpoint: 0.0.0.0:9464
+      namespace: excalibase
+    loki:
+      endpoint: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+      default_labels_enabled:
+        exporter: false
+        job: true
+    debug:
+      verbosity: basic
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch, resource]
+        exporters: [otlphttp/tempo]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch, resource]
+        exporters: [prometheus]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch, resource]
+        exporters: [loki]
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+  prometheus:
+    enabled: true
+    containerPort: 9464
+    servicePort: 9464
+    protocol: TCP
+
+serviceMonitor:
+  enabled: true
+  metricsEndpoints:
+    - port: prometheus
+      interval: 15s
